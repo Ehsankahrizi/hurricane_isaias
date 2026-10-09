@@ -8,11 +8,12 @@ to the map, so the map works when opened from Box Drive (or a downloaded copy of
 
 Run by tools/sync_to_box.sh after every Box copy. Standard library only.
 
-Usage:  python3 tools/make_map.py "<Box>/Hurricane Isaias"
+Usage:  python3 tools/make_map.py "<Box>/Hurricane Isaias" <mirror>
 """
 
 import csv
 import json
+import sys as _sys
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -23,26 +24,30 @@ MAP_NAME = "Isaias_camera_map.html"
 SOURCE_LABEL = {"traffic": "Traffic camera (state DOT)", "usgs": "USGS HIVIS", "windy": "Windy webcam"}
 
 
-def cdt(stamp):
-    """'2026-10-09T05-21Z' → '2026-10-09 00:21 CDT'."""
-    try:
-        t = datetime.strptime(stamp, "%Y-%m-%dT%H-%MZ").replace(tzinfo=timezone.utc)
-    except ValueError:
-        return stamp
-    return (t - timedelta(hours=5)).strftime("%a %b %d %H:%M CDT")
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+from publish_to_box import clean, hour_folder                    # noqa: E402  (same Box layout)
 
 
-def cameras(captures):
+def cameras(captures, mirror):
+    """Cameras from cameras.csv, each with its frames as [path relative to the map, CDT label]."""
     out = []
     index = captures / "cameras.csv"
     rows = list(csv.DictReader(index.open())) if index.exists() else []
+    manifest = json.loads((mirror / "state" / "manifest.json").read_text())
+    names = {c["folder"]: clean(c["name"]) for c in manifest["cameras"]}
+    by_cam = {}
+    for cap in sorted(manifest["captures"], key=lambda c: c["slot"]):
+        day, hour = hour_folder(cap["slot"])
+        label = f"{cap['folder']} - {names[cap['folder']]}" if names.get(cap["folder"]) else cap["folder"]
+        rel = f"Captures/{day}/{hour}/{label}{Path(cap['file']).suffix}"
+        if (captures.parent / rel).exists():
+            by_cam.setdefault(cap["folder"], []).append([rel, f"{day} · {hour}"])
     for r in rows:
-        folder = captures / r["folder"]
-        frames = sorted(f.name for f in folder.iterdir() if f.suffix in (".jpg", ".png")) if folder.is_dir() else []
+        frames = by_cam.get(r["folder"], [])
         out.append({"folder": r["folder"], "source": r["source"], "id": r["camera_id"], "name": r["name"],
                     "provider": r.get("provider", ""), "lat": float(r["lat"]), "lon": float(r["lon"]),
                     "coast_km": float(r["distance_to_coast_km"]), "page": r.get("page_url", ""),
-                    "frames": [[f, cdt(Path(f).stem)] for f in frames]})
+                    "frames": frames})
     order = {"windy": 0, "usgs": 1, "traffic": 2}             # traffic cameras drawn on top
     return sorted(out, key=lambda c: order.get(c["source"], 0))
 
@@ -64,7 +69,8 @@ def main():
         "points": json.loads((DATA / "track_points.geojson").read_text()),
         "warnings": json.loads((DATA / "warnings.geojson").read_text()),
         "stations": coast_stations(cone),
-        "cameras": cameras(box / "Captures"),
+        "cameras": cameras(box / "Captures", Path(sys.argv[2]) if len(sys.argv) > 2
+                           else Path.home() / "Library/Application Support/IsaiasBoxSync/mirror"),
         "labels": SOURCE_LABEL,
         "updated": (datetime.now(timezone.utc) - timedelta(hours=5)).strftime("%a %b %d %H:%M CDT"),
     }
@@ -166,13 +172,16 @@ function popup(c) {
     <div class="meta">${esc(D.labels[c.source] || c.source)} · ${esc(c.id)} · ${c.coast_km.toFixed(1)} km from the coast</div>
     ${c.frames.length ? `<img alt="Camera frame"><div class="nav"><button data-d="-1">◀</button><span class="when"></span><button data-d="1">▶</button></div>`
                       : `<div class="none">No frames yet</div>`}
-    <div class="links"><a href="Captures/${encodeURIComponent(c.folder)}/" target="_blank">Open folder</a>
+    <div class="links"><a class="open" target="_blank">Open image</a>
       ${c.page ? `<a href="${esc(c.page)}" target="_blank" rel="noopener">Camera page</a>` : ""}</div>`;
-  const img = el.querySelector("img"), when = el.querySelector(".when"), btns = el.querySelectorAll("button");
+  const img = el.querySelector("img"), when = el.querySelector(".when"), btns = el.querySelectorAll("button"),
+        open_ = el.querySelector(".open");
+  if (!img) open_.remove();
   function show() {
     if (!img) return;
     const [file, label] = c.frames[i];
-    img.src = `Captures/${encodeURIComponent(c.folder)}/${encodeURIComponent(file)}`;
+    img.src = file.split("/").map(encodeURIComponent).join("/");
+    open_.href = img.src;
     when.textContent = `${label}  (${i + 1}/${c.frames.length})`;
     btns[0].disabled = i === 0; btns[1].disabled = i === c.frames.length - 1;
   }
