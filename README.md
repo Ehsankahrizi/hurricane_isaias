@@ -27,10 +27,25 @@ File names are the fetch time in **UTC** (CDT = UTC − 5 h).
 
 ## Box copy (lab Mac)
 
-`captures/` is copied every hour into Box at `CamerData/Hurricane Isaias/Captures`, one folder per camera plus `cameras.csv`.
+Every hour the frames are copied into Box at `CamerData/Hurricane Isaias/Captures`, laid out by **day**, then **hour** (CDT), then **location**:
+
+```
+Captures/
+  2026-10-09 Fri/
+    00-00 CDT/
+      traffic_FL-cam-3800 - CCTV-SR30-ESC-2.7-EB.jpg     <camera> - <location name>
+      windy_1736352438 - East Pensacola Heights.jpg
+      …
+    01-00 CDT/
+  2026-10-10 Sat/
+  cameras.csv
+```
+
+- **Mirror:** S3 keeps one folder per camera. `aws s3 sync` fills a local mirror outside Box (`~/Library/Application Support/IsaiasBoxSync/mirror`). `tools/publish_to_box.py` then copies each frame into its day/hour folder, using the capture hour recorded in `state/manifest.json`.
+- **Don't rearrange the Box folder by hand:** the next run copies missing frames back.
 
 - **Interactive map:** `Hurricane Isaias/Isaias_camera_map.html` (made by `tools/make_map.py` after every copy). It shows the cone, track, watches/warnings and every camera by source. Click a camera to see its latest frame and step through its hourly frames. Open it from the Box Drive folder, so the frames next to it can be found.
-- **How it runs:** launchd job `com.ehsankahrizi.isaias-box-sync` (`tools/com.ehsankahrizi.isaias-box-sync.plist`, installed in `~/Library/LaunchAgents`) opens `~/Developer/IsaiasBoxSync.app` hourly. The app runs `tools/sync_to_box.sh` (`aws s3 sync`).
+- **How it runs:** launchd job `com.ehsankahrizi.isaias-box-sync` (`tools/com.ehsankahrizi.isaias-box-sync.plist`, installed in `~/Library/LaunchAgents`) opens `~/Developer/IsaiasBoxSync.app` hourly. The app runs `tools/sync_to_box.sh` (mirror, `publish_to_box.py`, `make_map.py`).
 - **Why an app:** macOS lets a background job write into Box Drive only as an app that has been granted access. Its source is `tools/IsaiasBoxSync.applescript`.
 - **Log:** `~/Library/Logs/isaias-box-sync.log`
 - **Run it now:** `open -g ~/Developer/IsaiasBoxSync.app`
