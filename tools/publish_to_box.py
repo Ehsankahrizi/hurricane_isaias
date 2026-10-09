@@ -28,6 +28,23 @@ def clean(name):
     return re.sub(r"\s+", " ", re.sub(r'[/\\:*?"<>|]+', "-", str(name))).strip(" .-")[:70]
 
 
+CONFLICT = re.compile(r"^(.*\S) \([^()]*@[^()]*\)$")         # Box Drive: "01-00 CDT (user@example.edu)"
+
+
+def existing(parent, name):
+    """The folder `name` in parent, or the copy Box Drive renamed after a name conflict
+    ("01-00 CDT (user@example.edu)"). Renaming it back only makes Box rename it again,
+    so it is used as it is."""
+    plain = parent / name
+    if plain.exists() or not parent.is_dir():
+        return plain
+    for d in sorted(parent.iterdir()):
+        m = CONFLICT.match(d.name)
+        if d.is_dir() and m and m.group(1) == name:
+            return d
+    return plain
+
+
 def hour_folder(slot):
     t = datetime.fromisoformat(slot.replace("Z", "+00:00")).astimezone(CDT)
     return t.strftime("%Y-%m-%d %a"), t.strftime("%H-00 CDT")
@@ -45,7 +62,8 @@ def main():
             continue
         day, hour = hour_folder(cap["slot"])
         label = f"{cap['folder']} - {names[cap['folder']]}" if names.get(cap["folder"]) else cap["folder"]
-        dst = box / day / hour / f"{label}{src.suffix}"
+        hour_dir = existing(existing(box, day), hour)
+        dst = hour_dir / f"{label}{src.suffix}"
         if not dst.exists() or dst.stat().st_size != src.stat().st_size:
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
@@ -59,7 +77,7 @@ def main():
             shutil.rmtree(d)
             removed += 1
     days = sorted(d.name for d in box.iterdir() if d.is_dir())
-    hours = sum(1 for d in box.iterdir() if d.is_dir() for _ in d.iterdir())
+    hours = sum(1 for d in box.iterdir() if d.is_dir() for h in d.iterdir() if h.is_dir())
     print(f"box: {copied} new frame(s); {len(days)} day(s), {hours} hour folder(s)"
           + (f"; removed {removed} old camera folder(s)" if removed else ""))
 
