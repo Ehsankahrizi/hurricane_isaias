@@ -25,7 +25,7 @@ SOURCE_LABEL = {"traffic": "Traffic camera (state DOT)", "usgs": "USGS HIVIS", "
 
 
 _sys.path.insert(0, str(Path(__file__).resolve().parent))
-from publish_to_box import clean, hour_folder                    # noqa: E402  (same Box layout)
+from publish_to_box import clean, existing, hour_folder                    # noqa: E402  (same Box layout)
 
 
 def cameras(captures, mirror):
@@ -39,8 +39,9 @@ def cameras(captures, mirror):
     for cap in sorted(manifest["captures"], key=lambda c: c["slot"]):
         day, hour = hour_folder(cap["slot"])
         label = f"{cap['folder']} - {names[cap['folder']]}" if names.get(cap["folder"]) else cap["folder"]
-        rel = f"Captures/{day}/{hour}/{label}{Path(cap['file']).suffix}"
-        if (captures.parent / rel).exists():
+        path = existing(existing(captures, day), hour) / f"{label}{Path(cap['file']).suffix}"
+        rel = path.relative_to(captures.parent).as_posix()
+        if path.exists():
             by_cam.setdefault(cap["folder"], []).append([rel, f"{day} · {hour}"])
     for r in rows:
         frames = by_cam.get(r["folder"], [])
