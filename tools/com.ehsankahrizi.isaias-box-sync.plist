@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Hourly: open IsaiasBoxSync.app, which copies new Hurricane Isaias frames from S3 into Box Drive
+	     (log: ~/Library/Logs/isaias-box-sync.log).
+	     Remove with: launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.ehsankahrizi.isaias-box-sync.plist -->
+	<key>Label</key>
+	<string>com.ehsankahrizi.isaias-box-sync</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/bin/open</string>
+		<string>-g</string>
+		<string>-j</string>
+		<string>/Users/ehsankahrizi/Developer/IsaiasBoxSync.app</string>
+	</array>
+	<key>StartInterval</key>
+	<integer>3600</integer>
+	<key>RunAtLoad</key>
+	<true/>
+</dict>
+</plist>

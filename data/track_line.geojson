@@ -1,0 +1,1 @@
+{"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-88.4, 25.4], [-87.6, 27.1], [-87.1, 29.9], [-87.3, 32.2], [-87.5, 34.1], [-86.1, 36.1], [-83.0, 38.0]]}, "properties": {"STORMNAME": "Isaias", "ADVISNUM": "10"}}]}
