@@ -29,6 +29,7 @@ File names are the fetch time in **UTC** (CDT = UTC − 5 h).
 
 `captures/` is copied every hour into Box at `CamerData/Hurricane Isaias/Captures`, one folder per camera plus `cameras.csv`.
 
+- **Interactive map:** `Hurricane Isaias/Isaias_camera_map.html` (made by `tools/make_map.py` after every copy). It shows the cone, track, watches/warnings and every camera by source. Click a camera to see its latest frame and step through its hourly frames. Open it from the Box Drive folder, so the frames next to it can be found.
 - **How it runs:** launchd job `com.ehsankahrizi.isaias-box-sync` (`tools/com.ehsankahrizi.isaias-box-sync.plist`, installed in `~/Library/LaunchAgents`) opens `~/Developer/IsaiasBoxSync.app` hourly. The app runs `tools/sync_to_box.sh` (`aws s3 sync`).
 - **Why an app:** macOS lets a background job write into Box Drive only as an app that has been granted access. Its source is `tools/IsaiasBoxSync.applescript`.
 - **Log:** `~/Library/Logs/isaias-box-sync.log`
